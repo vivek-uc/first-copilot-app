@@ -30,6 +30,65 @@ async function seedGames(db: Database, count: number): Promise<void> {
     }
 }
 
+async function seedFilteredGames(db: Database): Promise<{
+    strategyId: number;
+    racingId: number;
+    pubOneId: number;
+    pubTwoId: number;
+    alphaId: number;
+    betaId: number;
+    gammaId: number;
+}> {
+    const [strategy] = await db
+        .insert(categories)
+        .values({ name: 'Strategy', description: 'cat' })
+        .returning({ id: categories.id });
+    const [racing] = await db
+        .insert(categories)
+        .values({ name: 'Racing', description: 'cat' })
+        .returning({ id: categories.id });
+    const [pubOne] = await db
+        .insert(publishers)
+        .values({ name: 'Pub One', description: 'pub' })
+        .returning({ id: publishers.id });
+    const [pubTwo] = await db
+        .insert(publishers)
+        .values({ name: 'Pub Two', description: 'pub' })
+        .returning({ id: publishers.id });
+
+    const alpha = await db.insert(games).values({
+        title: 'Alpha Adventure',
+        description: 'Strategy under Pub One',
+        starRating: 4.7,
+        categoryId: strategy.id,
+        publisherId: pubOne.id,
+    }).returning({ id: games.id });
+    const beta = await db.insert(games).values({
+        title: 'Beta Dash',
+        description: 'Racing under Pub One',
+        starRating: 4.3,
+        categoryId: racing.id,
+        publisherId: pubOne.id,
+    }).returning({ id: games.id });
+    const gamma = await db.insert(games).values({
+        title: 'Gamma Quest',
+        description: 'Strategy under Pub Two',
+        starRating: 4.1,
+        categoryId: strategy.id,
+        publisherId: pubTwo.id,
+    }).returning({ id: games.id });
+
+    return {
+        strategyId: strategy.id,
+        racingId: racing.id,
+        pubOneId: pubOne.id,
+        pubTwoId: pubTwo.id,
+        alphaId: alpha[0].id,
+        betaId: beta[0].id,
+        gammaId: gamma[0].id,
+    };
+}
+
 describe('games data-access helpers', () => {
     let db: Database;
 
@@ -50,6 +109,31 @@ describe('games data-access helpers', () => {
         const ids = await getAllGameIds(db);
         const all = await getAllGames(db);
         expect(ids).toEqual(all.map((g) => g.id));
+    });
+
+    it('filters games by category and publisher together', async () => {
+        const { strategyId, pubOneId, alphaId } = await seedFilteredGames(db);
+
+        const filteredGames = await getAllGames(db, {
+            categoryIds: [strategyId],
+            publisherIds: [pubOneId],
+        });
+
+        expect(filteredGames.map((game) => game.title)).toEqual(['Alpha Adventure']);
+        expect(await getAllGameIds(db, {
+            categoryIds: [strategyId],
+            publisherIds: [pubOneId],
+        })).toEqual([alphaId]);
+    });
+
+    it('supports selecting multiple categories with OR logic', async () => {
+        const { strategyId, racingId, alphaId, betaId, gammaId } = await seedFilteredGames(db);
+
+        const filteredGames = await getAllGames(db, {
+            categoryIds: [strategyId, racingId],
+        });
+
+        expect(filteredGames.map((game) => game.id)).toEqual([alphaId, betaId, gammaId]);
     });
 
     it('fetches a single game by id', async () => {
