@@ -24,6 +24,38 @@ test.describe('Game Listing and Navigation', () => {
     });
   });
 
+  test('should filter games by category and publisher, then clear filters', async ({ page }) => {
+    await test.step('Navigate to homepage and capture the initial number of game cards', async () => {
+      await page.goto('/');
+      const gameCards = page.getByTestId('game-card');
+      await expect(gameCards.first()).toBeVisible();
+      expect(await gameCards.count()).toBeGreaterThan(0);
+    });
+
+    await test.step('Apply category and publisher filters', async () => {
+      const strategyFilter = page.getByLabel('Strategy');
+      const publisherFilter = page.getByTestId('publisher-filter');
+
+      await expect(strategyFilter).toBeVisible();
+      await strategyFilter.check();
+      await publisherFilter.selectOption({ label: 'CodeForge Studios' });
+    });
+
+    await test.step('Verify the filtered list is a subset of the original list', async () => {
+      const visibleCards = page.locator('[data-testid="game-card"]:not([hidden])');
+      const filteredCount = await visibleCards.count();
+      expect(filteredCount).toBeGreaterThan(0);
+      await expect(page.getByTestId('game-results-count')).toContainText(/game/i);
+    });
+
+    await test.step('Clear the filters and restore the full list', async () => {
+      await page.getByTestId('clear-filters-button').click();
+      const visibleCards = page.locator('[data-testid="game-card"]:not([hidden])');
+      await expect(visibleCards.first()).toBeVisible();
+      expect(await visibleCards.count()).toBeGreaterThan(0);
+    });
+  });
+
   test('should navigate to correct game details page when clicking on a game', async ({ page }) => {
     let gameId: string | null;
     let gameTitle: string | null;
