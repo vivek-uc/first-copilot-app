@@ -108,7 +108,7 @@ function renderIssueCard(issue, topIssue) {
     </article>`;
 }
 
-function renderHtml(instanceId) {
+function renderHtml() {
     return `<!doctype html>
 <html>
   <head>
@@ -152,7 +152,7 @@ async function startServer() {
                 return;
             }
             response.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-            response.end(renderHtml(request.headers["x-canvas-instance"] || "board"));
+            response.end(renderHtml());
         } catch (error) {
             jsonResponse(response, 400, { error: error instanceof Error ? error.message : "The request failed." });
         }
